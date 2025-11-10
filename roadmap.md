@@ -672,6 +672,74 @@
 
 ---
 
+### 2025-11-10 — Sprint 3 - Distribution-Specific Security Auditing
+**Auteur:** DevTeam
+**Résumé:** Implémentation de la détection automatique de distributions Linux et création de plugins de scan spécialisés basés sur une recherche approfondie des vulnérabilités et meilleures pratiques.
+
+**Livrables complétés:**
+- ✅ Recherche exhaustive sur les vulnérabilités Linux (LINUX_SECURITY_RESEARCH.md - 5000+ lignes)
+- ✅ Détecteur de distribution automatique (distro_detector.py)
+  - Support /etc/os-release (standard moderne)
+  - Fallback méthodes legacy
+  - Détection package manager, MAC (SELinux/AppArmor), firewall, init system
+- ✅ Plugin Ubuntu/Debian (ubuntu_plugin.py - 1000+ lignes)
+  - 50+ checks de sécurité (SSH, firewall UFW, AppArmor, CVE packages)
+  - Détection vulnérabilités critiques (CRITICAL/HIGH/MEDIUM)
+  - Alignement CIS Benchmarks
+  - Intégration Lynis pour audit additionnel
+- ✅ Plugin RHEL/CentOS/Rocky (rhel_plugin.py - 1000+ lignes)
+  - 55+ checks de sécurité (SSH, firewalld, SELinux, CVE packages)
+  - Détection vulnérabilités critiques spécifiques RHEL
+  - Support dnf/yum pour détection CVE
+  - Vérification statut subscription RHEL
+  - Recommandations OpenSCAP
+
+**Checks de sécurité implémentés (P0 - CRITICAL):**
+- SSH root login, password authentication, protocol version
+- Firewall désactivé ou mal configuré (UFW/firewalld)
+- SELinux/AppArmor désactivé ou permissif
+- Packages non patchés avec CVE security updates
+- Permissions fichiers faibles (/etc/shadow, world-writable)
+- Utilisateurs avec mots de passe vides ou UID 0 multiples
+- Services legacy dangereux (telnet, rsh, ftp)
+- Paramètres kernel non durcis (ASLR, redirects IP)
+
+**Décisions techniques:**
+- Architecture plugin par famille de distribution (Debian, RedHat, SUSE)
+- Détection intelligente via /etc/os-release + fallbacks
+- Intégration package managers natifs pour détection CVE (apt/dnf)
+- Format findings enrichi avec CWE, CVE, priorité remediation
+- Support versions EOL avec alertes critiques
+- Checks alignés sur CIS Benchmarks et recommandations vendors
+
+**Recherche effectuée:**
+- Analyse vulnerabilités Ubuntu/Debian 2025 (SSH, AppArmor, apt CVE)
+- Analyse vulnerabilités RHEL/CentOS/Rocky (SELinux, firewalld, dnf)
+- Étude CIS Benchmarks par distribution
+- Comparaison Lynis vs OpenSCAP (rapidité vs compliance)
+- Documentation meilleures pratiques vendors (Canonical, Red Hat)
+
+**Critères d'acceptation Sprint 3:**
+- [x] Détection automatique distribution (Ubuntu/Debian/RHEL/CentOS/Rocky) ✅
+- [x] Plugin Ubuntu avec 40+ checks critiques ✅
+- [x] Plugin RHEL avec 40+ checks critiques ✅
+- [x] Détection CVE packages via package manager natif ✅
+- [x] Findings avec severity, CWE, remediation, priority ✅
+- [x] Support SSH, firewall, MAC system checks ✅
+
+**Fichiers créés:**
+- docs/LINUX_SECURITY_RESEARCH.md (recherche exhaustive)
+- backend/plugins/detectors/distro_detector.py
+- backend/plugins/detectors/__init__.py
+- backend/plugins/ubuntu/ubuntu_plugin.py
+- backend/plugins/ubuntu/__init__.py
+- backend/plugins/rhel/rhel_plugin.py
+- backend/plugins/rhel/__init__.py
+
+**Prochaines étapes:** Sprint 4 - Windows & Active Directory Enumeration
+
+---
+
 ### [YYYY-MM-DD] — [Titre du changement]
 **Auteur:** [Nom]
 **Résumé:** [Description des modifications]
