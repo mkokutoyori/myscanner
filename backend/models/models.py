@@ -83,7 +83,7 @@ class Asset(Base):
     last_seen = Column(DateTime(timezone=True), onupdate=func.now())
     is_active = Column(Boolean, default=True)
     tags = Column(JSON, default=list)
-    metadata = Column(JSON, default=dict)  # Additional flexible data
+    asset_metadata = Column(JSON, default=dict)  # Additional flexible data
 
     # Relationships
     scans = relationship("Scan", back_populates="assets", secondary="scan_assets")

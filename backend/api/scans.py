@@ -2,7 +2,7 @@
 Scans API endpoints
 Manage vulnerability scans and discovery operations
 """
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Body
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from typing import List, Optional, Dict, Any
@@ -238,8 +238,8 @@ async def cancel_scan(scan_id: int, db: Session = Depends(get_db)):
 
 @router.post("/scans/discovery", response_model=ScanResponse, status_code=201)
 async def create_discovery_scan(
-    targets: List[str] = Field(..., description="IP ranges or hostnames to scan"),
-    name: Optional[str] = None,
+    targets: List[str] = Body(..., description="IP ranges or hostnames to scan", embed=True),
+    name: Optional[str] = Body(None, embed=True),
     db: Session = Depends(get_db)
 ):
     """
