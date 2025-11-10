@@ -25,6 +25,7 @@ aiohttp==3.9.1
 
 # Network Scanning
 python-nmap==0.7.1
+paramiko==3.4.0  # SSH client for plugins
 
 # Database Connectors
 cx-Oracle==8.3.0  # Oracle

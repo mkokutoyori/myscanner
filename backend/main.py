@@ -30,6 +30,20 @@ async def lifespan(app: FastAPI):
     init_db()
     logger.info("Database initialized successfully")
 
+    # Initialize plugins
+    logger.info("Initializing plugins...")
+    try:
+        from backend.models.database import SessionLocal
+        from backend.services.plugin_registry import init_plugins
+
+        db = SessionLocal()
+        plugin_count = init_plugins(db)
+        db.close()
+
+        logger.info(f"Initialized {plugin_count} plugins successfully")
+    except Exception as e:
+        logger.error(f"Plugin initialization failed: {e}")
+
     yield
 
     # Shutdown

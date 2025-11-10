@@ -624,6 +624,54 @@
 
 ---
 
+### 2025-11-10 — Sprint 2 Implementation - Plugin SDK Complete
+**Auteur:** DevTeam
+**Résumé:** Implémentation complète du Plugin SDK et du premier plugin Linux opérationnel. Sprint 2 démarré le même jour que Sprint 1 dans une approche agile accélérée.
+
+**Livrables complétés:**
+- ✅ Plugin SDK Python complet (BasePlugin, schemas Pydantic)
+- ✅ SSHHelper pour connexions SSH sécurisées
+- ✅ Plugin Linux avec Lynis et OpenSCAP
+- ✅ Plugin Loader dynamique
+- ✅ Plugin Registry avec sync DB automatique
+- ✅ Exemple Hello World fonctionnel (<200 lignes)
+- ✅ Documentation SDK complète (sdk/README.md)
+- ✅ Tests unitaires pour plugins
+
+**Items du backlog complétés:**
+- [R-006] Plugin SDK - Interface Python ✅
+- [R-007] Linux Plugin - SSH + Lynis/OpenSCAP ✅
+- [R-008] Plugin Loader - Chargement dynamique ✅
+
+**Décisions techniques:**
+- SDK basé sur classes abstraites Python avec Pydantic pour validation
+- Plugins auto-découverts via naming convention (*_plugin.py)
+- SSH via paramiko pour Linux/Unix remote access
+- Plugins isolés dans containers (prévu pour production)
+- Format findings standardisé compatible avec tous vendors
+
+**Critères d'acceptation Sprint 2:**
+- [x] SDK permet création plugin en <200 lignes Python ✅
+- [x] Plugin Linux se connecte en SSH ✅
+- [x] Findings normalisés (severity, remediation) ✅
+- [x] Checks de sécurité SSH implémentés ✅
+- [x] Plugin auto-découvert au startup ✅
+- [x] Documentation SDK avec tutoriel ✅
+
+**Fichiers créés:**
+- sdk/python/vulnscan_sdk/base_plugin.py (interface principale)
+- sdk/python/vulnscan_sdk/ssh_helper.py (SSH client)
+- sdk/python/examples/hello_world_plugin.py
+- backend/plugins/linux/linux_plugin.py
+- backend/services/plugin_loader.py
+- backend/services/plugin_registry.py
+- sdk/README.md (documentation complète)
+- sdk/python/tests/test_hello_world.py
+
+**Prochaines étapes:** Sprint 3 - Security & Approval Workflow
+
+---
+
 ### [YYYY-MM-DD] — [Titre du changement]
 **Auteur:** [Nom]
 **Résumé:** [Description des modifications]
