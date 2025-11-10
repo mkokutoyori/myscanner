@@ -305,3 +305,144 @@ async def get_scan_stats(db: Session = Depends(get_db)):
         "scans_by_type": scans_by_type,
         "pending_approvals": pending_approvals
     }
+
+
+class VulnerabilityScanCreate(BaseModel):
+    """Create vulnerability scan request"""
+    name: Optional[str] = None
+    description: Optional[str] = None
+    targets: List[str] = Field(..., min_items=1, description="IP addresses or hostnames to scan")
+    credential_id: int = Field(..., description="Credential ID for SSH authentication")
+    plugin_name: Optional[str] = Field(None, description="Plugin name (auto-detect if not specified)")
+    auto_detect_distro: bool = Field(True, description="Auto-detect Linux distribution")
+
+
+@router.post("/scans/vulnerability", response_model=ScanResponse, status_code=201)
+async def create_vulnerability_scan(
+    scan_data: VulnerabilityScanCreate,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
+    """
+    Create an authenticated vulnerability scan using Linux plugins.
+
+    This endpoint supports:
+    - Ubuntu/Debian scanning (ubuntu-security-audit plugin)
+    - RHEL/CentOS/Rocky scanning (rhel-security-audit plugin)
+    - Auto-detection of distribution if plugin_name not specified
+
+    Requires SSH credentials to authenticate to target systems.
+
+    - **targets**: List of IP addresses or hostnames
+    - **credential_id**: ID of credential to use for authentication
+    - **plugin_name**: Optional plugin name (ubuntu-security-audit, rhel-security-audit)
+    - **auto_detect_distro**: Auto-detect distribution if plugin_name not specified
+
+    Flow:
+    1. Validate credential exists
+    2. Create scan record
+    3. Queue scan task (Celery) - NOT IMPLEMENTED YET IN POC
+    4. Task will:
+       - Connect to each target via SSH
+       - Detect distribution (if auto_detect_distro=True)
+       - Run appropriate plugin
+       - Store findings in database
+    """
+    from backend.models import Credential
+
+    # Validate credential exists
+    credential = db.query(Credential).filter(Credential.id == scan_data.credential_id).first()
+    if not credential:
+        raise HTTPException(status_code=404, detail="Credential not found")
+
+    # Validate plugin if specified
+    if scan_data.plugin_name:
+        from backend.services.plugin_loader import PluginLoader
+        loader = PluginLoader()
+        plugin_instance = loader.get_plugin_instance(scan_data.plugin_name)
+        if not plugin_instance:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Plugin '{scan_data.plugin_name}' not found. Available plugins: {list(loader.plugins.keys())}"
+            )
+
+    # Generate scan name
+    scan_name = scan_data.name or f"Vulnerability Scan - {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}"
+
+    # Create scan object
+    scan = Scan(
+        name=scan_name,
+        description=scan_data.description or "Authenticated Linux vulnerability scan",
+        scan_type=ScanType.VULNERABILITY,
+        targets=scan_data.targets,
+        plugin_name=scan_data.plugin_name,
+        plugin_config={
+            "credential_id": scan_data.credential_id,
+            "auto_detect_distro": scan_data.auto_detect_distro
+        },
+        status=ScanStatus.PENDING,
+        requires_approval=False,  # Vulnerability scans don't require approval (non-intrusive)
+        created_by="system"  # TODO: Get from auth
+    )
+
+    db.add(scan)
+    db.commit()
+    db.refresh(scan)
+
+    # Queue the scan
+    # TODO: Integrate with Celery worker
+    # from backend.workers.tasks import execute_vulnerability_scan
+    # task = execute_vulnerability_scan.delay(scan.id)
+    # scan.celery_task_id = task.id
+    # db.commit()
+
+    return scan
+
+
+@router.post("/scans/{scan_id}/execute", response_model=ScanResponse)
+async def execute_scan_immediately(
+    scan_id: int,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
+    """
+    Execute a scan immediately (synchronous for POC, async in production).
+
+    This is a POC endpoint for testing without Celery.
+    In production, scans are queued automatically via Celery.
+    """
+    scan = db.query(Scan).filter(Scan.id == scan_id).first()
+    if not scan:
+        raise HTTPException(status_code=404, detail="Scan not found")
+
+    if scan.status != ScanStatus.PENDING:
+        raise HTTPException(status_code=400, detail=f"Scan cannot be executed (status: {scan.status.value})")
+
+    # Update scan status
+    scan.status = ScanStatus.RUNNING
+    scan.started_at = datetime.utcnow()
+    db.commit()
+
+    # Execute scan synchronously (for POC only)
+    try:
+        if scan.scan_type == ScanType.VULNERABILITY:
+            from backend.services.scan_executor import execute_vulnerability_scan_sync
+            result = execute_vulnerability_scan_sync(scan_id, db)
+
+            scan.status = ScanStatus.COMPLETED
+            scan.completed_at = datetime.utcnow()
+            scan.total_assets = result.get("assets_scanned", 0)
+            scan.total_findings = result.get("findings_created", 0)
+            db.commit()
+        else:
+            raise HTTPException(status_code=400, detail=f"Scan type {scan.scan_type.value} not supported for immediate execution")
+
+    except Exception as e:
+        scan.status = ScanStatus.FAILED
+        scan.completed_at = datetime.utcnow()
+        scan.error_message = str(e)
+        db.commit()
+        raise HTTPException(status_code=500, detail=f"Scan execution failed: {str(e)}")
+
+    db.refresh(scan)
+    return scan

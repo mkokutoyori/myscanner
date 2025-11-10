@@ -132,4 +132,72 @@ export const getHealth = async () => {
   return response.data;
 };
 
+// Credentials API
+export interface Credential {
+  id: number;
+  name: string;
+  description?: string;
+  credential_type: string;
+  username?: string;
+  has_password: boolean;
+  has_private_key: boolean;
+  has_api_key: boolean;
+  created_at: string;
+}
+
+export const getCredentials = async (page: number = 1, pageSize: number = 50) => {
+  const response = await api.get(`/credentials?page=${page}&page_size=${pageSize}`);
+  return response.data;
+};
+
+export const getCredential = async (id: number) => {
+  const response = await api.get(`/credentials/${id}`);
+  return response.data;
+};
+
+export const createCredential = async (credentialData: {
+  name: string;
+  description?: string;
+  credential_type: string;
+  username?: string;
+  password?: string;
+  private_key?: string;
+}) => {
+  const response = await api.post('/credentials', credentialData);
+  return response.data;
+};
+
+export const deleteCredential = async (id: number) => {
+  await api.delete(`/credentials/${id}`);
+};
+
+// Vulnerability Scans API
+export const createVulnerabilityScan = async (scanData: {
+  targets: string[];
+  credential_id: number;
+  name?: string;
+  description?: string;
+  plugin_name?: string;
+  auto_detect_distro?: boolean;
+}) => {
+  const response = await api.post('/scans/vulnerability', scanData);
+  return response.data;
+};
+
+export const executeScan = async (scanId: number) => {
+  const response = await api.post(`/scans/${scanId}/execute`);
+  return response.data;
+};
+
+// Plugins API
+export const getPlugins = async () => {
+  const response = await api.get('/plugins');
+  return response.data;
+};
+
+export const getPlugin = async (name: string) => {
+  const response = await api.get(`/plugins/${name}`);
+  return response.data;
+};
+
 export default api;

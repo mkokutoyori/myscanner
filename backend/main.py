@@ -11,7 +11,7 @@ import time
 
 from backend.core.config import settings
 from backend.models import init_db
-from backend.api import assets, scans, findings, plugins, health
+from backend.api import assets, scans, findings, plugins, health, credentials
 
 # Configure logging
 logging.basicConfig(
@@ -102,6 +102,7 @@ app.include_router(assets.router, prefix=settings.API_V1_PREFIX, tags=["assets"]
 app.include_router(scans.router, prefix=settings.API_V1_PREFIX, tags=["scans"])
 app.include_router(findings.router, prefix=settings.API_V1_PREFIX, tags=["findings"])
 app.include_router(plugins.router, prefix=settings.API_V1_PREFIX, tags=["plugins"])
+app.include_router(credentials.router, prefix=settings.API_V1_PREFIX, tags=["credentials"])
 
 
 # Root endpoint

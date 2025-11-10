@@ -252,3 +252,76 @@ def store_db_credential(asset_id: int, username: str, password: str, db_type: st
 def get_db_credential(asset_id: int) -> Optional[Dict[str, Any]]:
     """Get database credential for an asset"""
     return vault_service.get_credential(f"database/asset_{asset_id}")
+
+
+def store_credential_secrets(credential_id: str, secrets: Dict[str, Any]) -> str:
+    """
+    Store credential secrets in Vault (convenience function for API).
+
+    Args:
+        credential_id: Unique identifier for the credential
+        secrets: Dictionary of secrets to store
+
+    Returns:
+        Vault path where secrets are stored
+
+    Raises:
+        Exception: If Vault is not available or operation fails
+    """
+    if not vault_service.is_available():
+        raise Exception("Vault is not available")
+
+    path = f"credentials/{credential_id}"
+    success = vault_service.store_credential(path, secrets)
+
+    if not success:
+        raise Exception("Failed to store credential in Vault")
+
+    return f"{settings.VAULT_PATH_PREFIX}/{path}"
+
+
+def get_credential_secrets(vault_path: str) -> Dict[str, Any]:
+    """
+    Retrieve credential secrets from Vault (convenience function for API).
+
+    Args:
+        vault_path: Vault path where secrets are stored
+
+    Returns:
+        Dictionary of secrets
+
+    Raises:
+        Exception: If Vault is not available or credential not found
+    """
+    if not vault_service.is_available():
+        raise Exception("Vault is not available")
+
+    # Extract path from full vault path
+    path = vault_path.replace(f"{settings.VAULT_PATH_PREFIX}/", "")
+
+    credential = vault_service.get_credential(path)
+    if credential is None:
+        raise Exception("Credential not found in Vault")
+
+    return credential
+
+
+def delete_credential_secrets(vault_path: str) -> None:
+    """
+    Delete credential secrets from Vault (convenience function for API).
+
+    Args:
+        vault_path: Vault path where secrets are stored
+
+    Raises:
+        Exception: If Vault is not available or operation fails
+    """
+    if not vault_service.is_available():
+        raise Exception("Vault is not available")
+
+    # Extract path from full vault path
+    path = vault_path.replace(f"{settings.VAULT_PATH_PREFIX}/", "")
+
+    success = vault_service.delete_credential(path)
+    if not success:
+        raise Exception("Failed to delete credential from Vault")
