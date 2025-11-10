@@ -1,0 +1,185 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: vulnscan-postgres
+    environment:
+      POSTGRES_USER: vulnscan
+      POSTGRES_PASSWORD: vulnscan
+      POSTGRES_DB: vulnscan
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vulnscan"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - vulnscan-network
+
+  # Redis (Message Broker & Cache)
+  redis:
+    image: redis:7-alpine
+    container_name: vulnscan-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - vulnscan-network
+
+  # HashiCorp Vault (Dev Mode - NOT FOR PRODUCTION!)
+  vault:
+    image: hashicorp/vault:latest
+    container_name: vulnscan-vault
+    ports:
+      - "8200:8200"
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: root
+      VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
+    cap_add:
+      - IPC_LOCK
+    healthcheck:
+      test: ["CMD", "vault", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - vulnscan-network
+
+  # Neo4j Graph Database (Optional for POC)
+  neo4j:
+    image: neo4j:5-community
+    container_name: vulnscan-neo4j
+    ports:
+      - "7474:7474"  # HTTP
+      - "7687:7687"  # Bolt
+    environment:
+      NEO4J_AUTH: neo4j/password
+      NEO4J_PLUGINS: '["graph-data-science"]'
+    volumes:
+      - neo4j_data:/data
+    networks:
+      - vulnscan-network
+
+  # FastAPI Backend
+  api:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.api
+    container_name: vulnscan-api
+    ports:
+      - "8000:8000"
+    environment:
+      DEBUG: "true"
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: vulnscan
+      POSTGRES_PASSWORD: vulnscan
+      POSTGRES_DB: vulnscan
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      VAULT_ADDR: http://vault:8200
+      VAULT_TOKEN: root
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_USER: neo4j
+      NEO4J_PASSWORD: password
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      vault:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app/backend
+      - ./sdk:/app/sdk
+    command: uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
+    networks:
+      - vulnscan-network
+
+  # Celery Worker
+  worker:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.worker
+    container_name: vulnscan-worker
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: vulnscan
+      POSTGRES_PASSWORD: vulnscan
+      POSTGRES_DB: vulnscan
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      VAULT_ADDR: http://vault:8200
+      VAULT_TOKEN: root
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      vault:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app/backend
+      - ./sdk:/app/sdk
+    command: celery -A backend.workers.celery_app worker --loglevel=info --concurrency=2
+    networks:
+      - vulnscan-network
+    # Privileged mode for network scanning (nmap)
+    # In production, use capabilities instead
+    privileged: true
+
+  # Celery Beat (Scheduler) - Optional for POC
+  # beat:
+  #   build:
+  #     context: .
+  #     dockerfile: infra/docker/Dockerfile.worker
+  #   container_name: vulnscan-beat
+  #   environment:
+  #     POSTGRES_HOST: postgres
+  #     REDIS_HOST: redis
+  #   depends_on:
+  #     - postgres
+  #     - redis
+  #   command: celery -A backend.workers.celery_app beat --loglevel=info
+  #   networks:
+  #     - vulnscan-network
+
+  # React Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: ../infra/docker/Dockerfile.frontend
+    container_name: vulnscan-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      REACT_APP_API_URL: http://localhost:8000
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+    depends_on:
+      - api
+    networks:
+      - vulnscan-network
+
+volumes:
+  postgres_data:
+  redis_data:
+  neo4j_data:
+
+networks:
+  vulnscan-network:
+    driver: bridge
