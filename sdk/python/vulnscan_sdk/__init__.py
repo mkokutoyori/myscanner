@@ -16,6 +16,19 @@ from .base_plugin import (
     FindingSeverity
 )
 
+# Import helpers (with optional dependencies)
+try:
+    from .ssh_helper import SSHHelper, SSHConnectionError, SSHExecutionError
+    SSH_AVAILABLE = True
+except ImportError:
+    SSH_AVAILABLE = False
+
+try:
+    from .winrm_helper import WinRMHelper, WinRMConnectionError, WinRMExecutionError
+    WINRM_AVAILABLE = True
+except ImportError:
+    WINRM_AVAILABLE = False
+
 __all__ = [
     "BasePlugin",
     "PluginType",
@@ -25,3 +38,10 @@ __all__ = [
     "PluginConfig",
     "FindingSeverity",
 ]
+
+# Add helpers to __all__ if available
+if SSH_AVAILABLE:
+    __all__.extend(["SSHHelper", "SSHConnectionError", "SSHExecutionError"])
+
+if WINRM_AVAILABLE:
+    __all__.extend(["WinRMHelper", "WinRMConnectionError", "WinRMExecutionError"])
